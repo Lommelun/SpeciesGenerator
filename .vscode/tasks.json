@@ -1,0 +1,55 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Format changes",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "clang-format",
+                "master"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Build (Swift)",
+            "type": "shell",
+            "command": "swift build",
+            "options": {
+                "cwd": "${env:SWIFT_BUILD_DIR}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Build Release (Swift)",
+            "type": "shell",
+            "command": "swift build -c release",
+            "options": {
+                "cwd": "${env:SWIFT_BUILD_DIR}"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Run (Swift)",
+            "type": "shell",
+            "command": "swift run speciesgenerator ${input:swiftargs}",
+            "options": {
+                "cwd": "${env:SWIFT_BUILD_DIR}"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "swiftargs",
+            "description": "Arguments passed directly to the executed product",
+            "default": "",
+            "type": "promptString"
+        },
+    ]
+}

@@ -7,16 +7,22 @@ struct SpeciesGenerator: ParsableCommand {
 
     @Argument(
         help: """
+        This is the output path that files are generated to.
+        """,
+        transform: URL.init(fileURLWithPath:)
+    )
+    var modDirectory: URL
+
+    @Option(
+        help: """
         The path to the .dds images.
+        If not set, assumes pictures are in `--mod-irectory`/gfx/models/portraits
         
         Tip: use imagemagick to convert them to the dds format (DirectDrawSurface) (`convert -define dds:compression=dxt5 [images]
         """,
         transform: URL.init(fileURLWithPath:)
     )
-    var imagesPath: URL
-
-    @Option(name: .shortAndLong, help: "The mod directory. If not set, assumes the current directory", transform: URL.init(fileURLWithPath:))
-    var modDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    var imagesPath: URL?
 
     @Option(name: .shortAndLong, help: "The sound asset for the species")
     var speciesSoundAsset: String = "human_female_greetings_05"
@@ -28,24 +34,55 @@ struct SpeciesGenerator: ParsableCommand {
     var nonGendered = false
 
     mutating func validate() throws {
-        if !FileManager.default.fileExists(atPath: imagesPath.path) {
-            throw ValidationError("Images directory does not exist at \(imagesPath.path)")
-        }
-
         if !FileManager.default.fileExists(atPath: modDirectory.path) {
             throw ValidationError("Mod directory does not exist at \(modDirectory.path)")
         }
     }
 
     mutating func run() throws {
-        Species(
-            speciesName: speciesName,
-            speciesSoundAssetName: speciesSoundAsset,
-            modDirectory: modDirectory,
-            imageParser: ImageParser(for: imagesPath)
-        ).writeFile()
+        let modDirectoryGfxModelsPath = modDirectory.appendingPathComponent("gfx").appendingPathComponent("models").appendingPathComponent("portraits")
+        let imagesPath = imagesPath ?? modDirectoryGfxModelsPath
 
-        SpeciesClass.writeFile(speciesName: speciesName, portraitGroup: portraitGroup, gendered: !nonGendered, modDirectory: modDirectory)
+        guard FileManager.default.fileExists(atPath: imagesPath.path) else {
+            throw ValidationError("Images directory does not exist at \(imagesPath.path)")
+        }
+
+        let fileName = speciesName.replacingOccurrences(of: " ", with: "_")
+
+        createFile(
+            named: "00_portraits_\(fileName).txt",
+            at: modDirectory.appendingPathComponent("gfx")
+                            .appendingPathComponent("portraits")
+                            .appendingPathComponent("portraits"),
+            with: String.species(speciesName: speciesName, speciesSoundAssetName: speciesSoundAsset, ddsImageFiles: ddsFiles(at: imagesPath)).data(using: .utf8)!
+        )
+
+        createFile(
+            named: "\(fileName)_species_classes.txt",
+            at:  modDirectory.appendingPathComponent("common")
+                             .appendingPathComponent("species_classes"),
+            with: String.speciesClasses(speciesName: speciesName, portraitGroup: portraitGroup, gendered: !nonGendered).data(using: .utf8)!
+        )
+    }
+
+    private func createFile(named fileName: String, at path: URL, with content: Data) {
+        do {
+            try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+
+            let newFile = path.appendingPathComponent(fileName).path
+            FileManager.default.createFile(atPath: newFile, contents: content)
+        } catch {
+            fatalError("Failed to create file named `\(fileName)` at \(path.path)")
+        }
+    }
+
+    private func ddsFiles(at imagesPath: URL) -> [URL] {
+        do {
+            return try FileManager.default.contentsOfDirectory(at: imagesPath, includingPropertiesForKeys: nil)
+                                          .filter { $0.pathExtension == "dds" }
+        } catch {
+            fatalError("Failed to get images from \(imagesPath.path)")
+        }
     }
 }
 

@@ -12,4 +12,6 @@ Build it with swift 5.5 or newer. See https://swift.org/getting-started/ for hel
 
 ## Usage:
 
-Described by passing the `-h|--help` flag when executing the binary.
+Described by passing the `-h|--help` flag when executing the binary
+
+.
